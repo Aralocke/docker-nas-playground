@@ -1,0 +1,25 @@
+[entryPoints]
+  [entryPoints.web]
+    address = ":8080"
+
+#    [entryPoints.web.http.redirections.entryPoint]
+#      to = "websecure"
+#      scheme = "https"
+
+#  [entryPoints.websecure]
+#    address = ":8443"
+
+[log]
+  level = "info"
+
+[api]
+  dashboard = true
+  debug = true
+
+[providers.docker]
+  watch = true
+  network = "traefik-net"
+
+[providers.file]
+  filename = "/etc/traefik/traefik_dynamic.toml"
+  watch = true

@@ -1,0 +1,16 @@
+[http.middlewares.simpleAuth.basicAuth]
+  users = [
+    "admin:$apr1$f7Xj1oQI$PZuHumRYzSarFeGGdBOEf/"
+  ]
+
+[http.routers.api]
+  rule = "Host(`traefik.lab.local`) && (PathPrefix(`/api`) || PathPrefix(`/dashboard`))"
+  tls = true
+  middlewares = ["simpleAuth"]
+  service = "api@internal"
+
+# [tls.stores]
+#   [tls.stores.default]
+#     [tls.stores.default.defaultCertificate]
+#       certFile = "/certificates/fullchain.pem"
+#       keyFile = "/certificates/privkey.pem"
