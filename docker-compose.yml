@@ -1,0 +1,131 @@
+version: '3.9'
+
+services:
+  image-service:
+    image: nginx:mainline-alpine-slim
+    environment:
+      - NGINX_HOST=images.lab.local
+      - NGINX_PORT=80
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.image-service.rule=Host(`images.lab.local`)
+      # - traefik.http.routers.image-service.entrypoints=websecure
+      # - traefik.http.routers.image-service.tls=true
+      - traefik.http.services.image-service.loadbalancer.server.port=80
+    networks:
+      - traefik-net
+    ports:
+      - 80
+    volumes:
+      - image-data:/usr/share/nginx/html
+  repos-service:
+    image: nginx:mainline-alpine-slim
+    environment:
+      - NGINX_HOST=repos.lab.local
+      - NGINX_PORT=80
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.repos-service.rule=Host(`repos.lab.local`)
+      # - traefik.http.routers.repos-service.entrypoints=websecure
+      # - traefik.http.routers.repos-service.tls=true
+      - traefik.http.services.repos-service.loadbalancer.server.port=80
+    networks:
+      - traefik-net
+    ports:
+      - 80
+    volumes:
+      - repos-data:/usr/share/nginx/html
+  static-service:
+    image: nginx:mainline-alpine-slim
+    environment:
+      - NGINX_HOST=static.lab.local
+      - NGINX_PORT=80
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.static-service.rule=Host(`static.lab.local`)
+      # - traefik.http.routers.static-service.entrypoints=websecure
+      # - traefik.http.routers.static-service.tls=true
+      - traefik.http.services.static-service.loadbalancer.server.port=80
+    networks:
+      - traefik-net
+    ports:
+      - 80
+    volumes:
+      - static-data:/usr/share/nginx/html
+  object-service:
+    image: minio/minio:latest
+    command: ["server", "/data", "--console-address", ":9001"]
+    labels:
+      - traefik.enable=true
+
+      - traefik.http.routers.object-service.rule=Host(`object.lab.local`)
+      - traefik.http.routers.object-service.entrypoints=websecure
+      # - traefik.http.routers.object-service.tls=true
+      # - traefik.http.routers.object-service.service=object-http-service
+      - traefik.http.services.object-http-service.loadbalancer.server.port=9000
+
+      - traefik.http.routers.minio-service.rule=Host(`minio.lab.local`)
+      # - traefik.http.routers.minio-service.tls=true
+      # - traefik.http.routers.minio-service.entrypoints=websecure
+      - traefik.http.routers.minio-service.service=minio-http-service
+      - traefik.http.services.minio-http-service.loadbalancer.server.port=9001
+    networks:
+      - traefik-net
+    ports:
+      - 9000
+      - 9001
+    volumes:
+      - object-data:/data
+  
+  traefik:
+    image: traefik:v2.9.8
+    depends_on:
+      - image-service
+      - repos-service
+      - static-service
+      - object-service
+    labels:
+      - traefik.enable=false
+    networks:
+      - frontend-net
+      - traefik-net
+    ports:
+      - '8080:8080'
+      - '8443:8443'
+    volumes:
+      # - ./tmp/certs:/certificates:ro
+      - ./services/traefik/traefik.toml:/etc/traefik/traefik.toml:ro
+      - ./services/traefik/traefik_dynamic.toml:/etc/traefik/traefik_dynamic.toml:ro
+      - /var/run/docker.sock:/var/run/docker.sock
+
+volumes:
+  image-data:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ./storage/images
+  repos-data:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ./storage/repos
+  static-data:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ./storage/static
+  object-data:
+    driver: local
+    driver_opts:
+      o: bind
+      type: none
+      device: ./storage/minio
+
+networks:
+  traefik-net:
+    external: false
+  frontend-net:
+    external: true
